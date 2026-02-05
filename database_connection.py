@@ -1,14 +1,52 @@
 import sqlite3
 
-# Connect to the database
+#This block establishes the foundational relational database schema by creating tables for authors,
+#categories, members, books, and loans
 connection = sqlite3.connect('library_project.db')
 cursor = connection.cursor()
-import os
-import sqlite3
 
-connection = sqlite3.connect('library_project.db')
-# Dosyanın tam yolunu terminale yazdırır
-print("Current database path:", os.path.abspath('library_project.db'))
+cursor.executescript("""
+CREATE TABLE IF NOT EXISTS authors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(100) NOT NULL,
+    surname VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS categories (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    category_name VARCHAR(100) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name VARCHAR(100) NOT NULL,
+    surname VARCHAR(100) NOT NULL,
+    email VARCHAR(150) UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS books (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title VARCHAR(255) NOT NULL,
+    author_id INTEGER,
+    category_id INTEGER,
+    stock_count INTEGER DEFAULT 0,
+    FOREIGN KEY (author_id) REFERENCES authors(id) ON DELETE SET NULL,
+    FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+);
+
+CREATE TABLE IF NOT EXISTS loans (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    book_id INTEGER,
+    member_id INTEGER,
+    loan_date DATE DEFAULT (DATE('now')),
+    return_date DATE,
+    is_returned INTEGER DEFAULT 0,
+    FOREIGN KEY (book_id) REFERENCES books(id) ON DELETE CASCADE,
+    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+);
+""")
+connection.commit()
+
 def add_book(title, author_id, stock_count):
     connection = sqlite3.connect('library_project.db')
     cursor = connection.cursor()
@@ -81,6 +119,107 @@ def return_book(loan_id):
     else:
         print("Error: Loan record not found or already returned.")
         
+    conn.close()
+
+from datetime import datetime
+
+def list_overdue_books(days_limit=15):
+    """Lists books that have been borrowed for more than the allowed days."""
+    conn = sqlite3.connect('library_project.db')
+    cursor = conn.cursor()
+    
+    # SQL query to join loans, books, and members
+    query = """
+    SELECT 
+        loans.id, 
+        books.title, 
+        members.name || ' ' || members.surname AS member_name,
+        loans.loan_date
+    FROM loans
+    JOIN books ON loans.book_id = books.id
+    JOIN members ON loans.member_id = members.id
+    WHERE loans.is_returned = 0
+    """
+    
+    cursor.execute(query)
+    active_loans = cursor.fetchall()
+    
+    print(f"\nOverdue Books Report (Limit: {days_limit} days)")
+    found_overdue = False
+    
+    for loan in active_loans:
+        loan_id, title, member, loan_date_str = loan
+        
+        # Convert string date from DB to Python datetime object
+        loan_date = datetime.strptime(loan_date_str, '%Y-%m-%d')
+        today = datetime.now()
+        
+        # Calculate the difference in days
+        diff = (today - loan_date).days
+        
+        if diff > days_limit:
+            print(f"LOAN ID: {loan_id} | BOOK: {title} | MEMBER: {member} | DAYS LATE: {diff - days_limit}")
+            found_overdue = True
+            
+    if not found_overdue:
+        print("No overdue books found. Everything is on schedule")
+        
+    conn.close()
+
+from datetime import datetime
+
+def list_overdue_with_fines(days_limit=15, fine_per_day=5):
+    """Lists overdue books and calculates the total fine for each."""
+    conn = sqlite3.connect('library_project.db')
+    cursor = conn.cursor()
+    
+    query = """
+    SELECT 
+        loans.id, 
+        books.title, 
+        members.name || ' ' || members.surname AS member_name,
+        loans.loan_date
+    FROM loans
+    JOIN books ON loans.book_id = books.id
+    JOIN members ON loans.member_id = members.id
+    WHERE loans.is_returned = 0
+    """
+    
+    cursor.execute(query)
+    active_loans = cursor.fetchall()
+    
+    print(f"\n" + "="*75)
+    print(f"{'LOAN ID':<8} | {'BOOK TITLE':<25} | {'MEMBER':<15} | {'FINE (TL)':<10}")
+    print("-" * 75)
+    
+    found_overdue = False
+    total_expected_fine = 0
+    
+    for loan in active_loans:
+        loan_id, title, member, loan_date_str = loan
+        
+        # SQLite format: YYYY-MM-DD
+        loan_date = datetime.strptime(loan_date_str, '%Y-%m-%d')
+        today = datetime.now()
+        
+        diff_days = (today - loan_date).days
+        
+        # Calculate overdue days
+        if diff_days > days_limit:
+            overdue_days = diff_days - days_limit
+            total_fine = overdue_days * fine_per_day
+            total_expected_fine += total_fine
+            
+            print(f"{loan_id:<8} | {title[:25]:<25} | {member[:15]:<15} | {total_fine:<10.2f} TL")
+            found_overdue = True
+            
+    if not found_overdue:
+        print("No overdue books. No fines to collect")
+    else:
+        print("-" * 75)
+        print(f"Total Collectable Fines: {total_expected_fine:.2f} TL")
+        
+    print("="*75)
     conn.close()
 
 def add_member(name, surname, email):
@@ -156,20 +295,6 @@ CREATE TABLE IF NOT EXISTS books (
     FOREIGN KEY (author_id) REFERENCES authors(id)
 );
 """)
-connection.commit()
-
-# Now try to fetch data
-print("The database consist of these books:")
-cursor.execute("SELECT * FROM books")
-results = cursor.fetchall()
-
-if not results:
-    print("Database is ready but currently empty. Let's add the first book")
-else:
-    for row in results:
-        print(row)
-
-connection.close()
 
 # Program running in a loop
 while True:
@@ -183,6 +308,7 @@ while True:
     print("6. Return a Book")
     print("7. Show Active Loans")
     print("8. Low Stock Report")
+    print("9. Show the Fine")
     print("0. Exit")
     
     choice = input("\nSelect an option: ")
@@ -208,5 +334,9 @@ while True:
         return_book(l_id)
     elif choice == '8':
         low_stock_alert()
+    elif choice == '9':
+        limit = int(input("Enter day limit : ") or 15)
+        daily_fine = float(input("Enter daily fine amount : ") or 5)
+        list_overdue_with_fines(limit, daily_fine)
     elif choice == '0':
         break
