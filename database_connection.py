@@ -279,64 +279,124 @@ def list_books():
     
     connection.close()
 
-# Create tables 
-cursor.executescript("""
-CREATE TABLE IF NOT EXISTS authors (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    surname TEXT NOT NULL
-);
+def list_categories():
+    """Fetches and displays all available categories."""
+    conn = sqlite3.connect('library_project.db')
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, category_name FROM categories")
+    categories = cursor.fetchall()
+    
+    if not categories:
+        print("\nNo categories found. Please add a category first")
+        return False
+    
+    print("\n--- Available Categories ---")
+    for cat_id, name in categories:
+        print(f"ID: {cat_id} | Name: {name}")
+    conn.close()
+    return True
 
-CREATE TABLE IF NOT EXISTS books (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT NOT NULL,
-    author_id INTEGER,
-    stock_count INTEGER DEFAULT 0,
-    FOREIGN KEY (author_id) REFERENCES authors(id)
-);
-""")
+def add_category(name):
+    """Adds a new category to the database."""
+    conn = sqlite3.connect('library_project.db')
+    cursor = conn.cursor()
+    try:
+        cursor.execute("INSERT INTO categories (category_name) VALUES (?)", (name,))
+        conn.commit()
+        print(f"Category '{name}' added successfully")
+    except sqlite3.Error as e:
+        print(f"Error adding category: {e}")
+    finally:
+         def safe_int_input(prompt):
+              while True:
+                   try:
+                        return int(input(prompt))
+                   except ValueError:
+                        print("Invalid input. Please enter a numeric ID.")
 
 # Program running in a loop
 while True:
     print(" Library Management System ")
     print("-"*30)
-    print("1. Add Book")
+    print("1. List All Categories")
     print("2. List All Books")
-    print("3. Delete Book 0")
-    print("4. Add New Member")
-    print("5. Loan a Book")
-    print("6. Return a Book")
-    print("7. Show Active Loans")
-    print("8. Low Stock Report")
-    print("9. Show the Fine")
+    print("3. Add New Member")
+    print("4. Add New Book")
+    print("5. Delete Book ")
+    print("6. Loan a Book")
+    print("7. Return a Book")
+    print("8. Show Active Loans")
+    print("9. Low Stock Report")
+    print("10. Show the Fine")
+    print("11. Add New Category")
     print("0. Exit")
     
     choice = input("\nSelect an option: ")
 
     if choice == '1':
-        title = input("Title: ")
-        a_id = int(input("Author ID: "))
-        stock = int(input("Initial Stock: "))
-        add_book(title, a_id, stock)
+            # List All Categories
+            list_categories()
+
     elif choice == '2':
-        list_books()
+            # List All Books
+            list_books()
+
+    elif choice == '3':
+            # Add New Member
+            m_name = input("Member Name: ")
+            m_surname = input("Member Surname: ")
+            m_email = input("Email: ")
+            add_member(m_name, m_surname, m_email)
+
     elif choice == '4':
-        m_name = input("Member Name: ")
-        m_surname = input("Member Surname: ")
-        m_email = input("Email: ")
-        add_member(m_name, m_surname, m_email)
+            # Add New Book
+            print("\n--- Add New Book ---")
+            title = input("Book Title: ")
+            a_id = safe_int_input("Author ID: ")
+            c_id = safe_int_input("Category ID: ")
+            stock = safe_int_input("Initial Stock: ")
+            add_book(title, a_id, c_id, stock)
+
     elif choice == '5':
-        b_id = int(input("Book ID to loan: "))
-        m_id = int(input("Member ID: "))
-        loan_book(b_id, m_id)
+            # Delete Book
+            b_id = safe_int_input("Enter the ID of the book to delete: ")
+            delete_book(b_id)
+
     elif choice == '6':
-        l_id = int(input("Loan ID to return: "))
-        return_book(l_id)
+            # Loan a Book
+            b_id = safe_int_input("Enter Book ID to loan: ")
+            m_id = safe_int_input("Enter Member ID: ")
+            loan_book(b_id, m_id)
+
+    elif choice == '7':
+            # Return a Book
+            l_id = safe_int_input("Enter Loan ID to return: ")
+            return_book(l_id)
+
     elif choice == '8':
-        low_stock_alert()
+            # Show Active Loans
+            list_active_loans()
+
     elif choice == '9':
-        limit = int(input("Enter day limit : ") or 15)
-        daily_fine = float(input("Enter daily fine amount : ") or 5)
-        list_overdue_with_fines(limit, daily_fine)
+            # Low Stock Report
+            low_stock_alert()
+
+    elif choice == '10':
+            # Show the Fine 
+            limit_input = input("Enter day limit (default 15): ")
+            limit = int(limit_input) if limit_input else 15
+            fine_input = input("Enter daily fine amount (default 5 TL): ")
+            daily_fine = float(fine_input) if fine_input else 5
+            list_overdue_with_fines(limit, daily_fine)
+
+    elif choice == '11':
+            cat_name = input("Enter new Category Name : ")
+            add_category(cat_name)
+
     elif choice == '0':
-        break
+            print("\nDatabase connection closed. Exiting the system... Goodbye Sude!")
+            connection.close()
+            break
+
+    else:
+            print("\nInvalid selection. Please choose between 0 and 10.")
