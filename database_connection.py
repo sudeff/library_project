@@ -1,4 +1,6 @@
 import sqlite3
+import pandas as pd
+import matplotlib.pyplot as plt
 
 #This block establishes the foundational relational database schema by creating tables for authors,
 #categories, members, books, and loans
@@ -314,6 +316,57 @@ def add_category(name):
                    except ValueError:
                         print("Invalid input. Please enter a numeric ID.")
 
+def run_analysis():
+    conn = sqlite3.connect('library_project.db')
+    
+    # Importing data into Pandas DataFrame
+    query = """
+    SELECT books.title, categories.category_name, loans.loan_date 
+    FROM loans
+    JOIN books ON loans.book_id = books.id
+    JOIN categories ON books.category_id = categories.id
+    """
+    df = pd.read_sql_query(query, conn)
+    
+    if df.empty:
+        print("\nNot enough data in the database to perform analysis.")
+        conn.close()
+        return
+
+    # 1. Density Analysis: Distribution by Day of the Week
+    df['loan_date'] = pd.to_datetime(df['loan_date'])
+    df['day_name'] = df['loan_date'].dt.day_name()
+    day_order = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+    day_counts = df['day_name'].value_counts().reindex(day_order).fillna(0)
+
+    # Visualization
+    plt.figure(figsize=(10, 5))
+    day_counts.plot(kind='bar', color='teal', edgecolor='black')
+    plt.title('Daily Loan Density (Staffing Optimization Insight)')
+    plt.xlabel('Day of the Week')
+    plt.ylabel('Total Loans')
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.show()
+    
+    # 2. ABC Analysis (Popularity/Cumulative Portion)
+    print("\n" + "="*40)
+    print(" ABC ANALYSIS (Book Popularity) ")
+    print("="*40)
+    
+    book_stats = df['title'].value_counts().to_frame('loan_count')
+    book_stats['cumulative_share'] = (book_stats['loan_count'].cumsum() / book_stats['loan_count'].sum()) * 100
+    
+    def classify_abc(row):
+        if row['cumulative_share'] <= 70: return 'A (Very Popular)'
+        elif row['cumulative_share'] <= 90: return 'B (Moderate)'
+        else: return 'C (Slow Moving)'
+        
+    book_stats['class'] = book_stats.apply(classify_abc, axis=1)
+    print(book_stats[['loan_count', 'class']])
+    print("="*40)
+    
+    conn.close()
+
 # Program running in a loop
 while True:
     print(" Library Management System ")
@@ -329,6 +382,7 @@ while True:
     print("9. Low Stock Report")
     print("10. Show the Fine")
     print("11. Add New Category")
+    print("12. Execute Engineering Analysis")
     print("0. Exit")
     
     choice = input("\nSelect an option: ")
@@ -393,10 +447,16 @@ while True:
             cat_name = input("Enter new Category Name : ")
             add_category(cat_name)
 
+    elif choice == '12':
+            print("\n[Executing Engineering Analytics...]")
+            run_analysis()
+
     elif choice == '0':
-            print("\nDatabase connection closed. Exiting the system... Goodbye Sude!")
+            print("\nDatabase connection closed. Exiting the system...")
             connection.close()
             break
 
     else:
             print("\nInvalid selection. Please choose between 0 and 10.")
+
+
