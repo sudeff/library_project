@@ -3,6 +3,7 @@
 ## Table of Contents
 
 - [About the Project](#about-the-project)
+- [Project_Scope](#project-scope)
 - [Features](#features)
 - [Database Design](#database-design)
 - [Interactive Menu Overview](#interactive-menu-overview)
@@ -16,6 +17,11 @@ The goal of this project is to model a basic library system using a normalized r
 The project emphasizes database schema design, data integrity, and clear visualization through an Entity–Relationship (ER) diagram.
 
 ---
+
+## Project Scope
+
+This project focuses on database design and core library operations rather than building a full-scale application.  
+The primary goal is to demonstrate how relational data models can be translated into an interactive, menu-driven system.
 
 ## Features
 
@@ -35,7 +41,8 @@ The database structure is represented using an Entity–Relationship (ER) diagra
 
 ## Interactive Menu Overview
 
-When you run the Python script, the program presents an interactive menu with 12 options. This menu allows you to perform core library operations directly from the command line. The available choices include:
+The system is implemented as a menu-driven console application.  
+When the Python script is executed, the user interacts with the database through the following options:
 
 1. Add a new book  
 2. Update book information  
@@ -53,11 +60,16 @@ When you run the Python script, the program presents an interactive menu with 12
 The menu guides the user through common library tasks using simple input prompts, making the application easy to interact with from the terminal.
 
 ## Future Improvements
+
 Potential extensions of the project include:
-Implementing CRUD operations
-Adding a command-line interface
-Introducing authentication and user roles
-Integrating a web-based interface
-Adding automated tests
+
+- Implementing full CRUD operations
+- Improving input validation and error handling
+- Introducing authentication and user roles
+- Integrating a web-based interface
+- Adding automated tests
+
+This project was developed for educational purposes to reinforce database design principles.
+
 
 
